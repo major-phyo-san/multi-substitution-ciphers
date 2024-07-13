@@ -2,7 +2,7 @@ import psutil
 import time
 import tracemalloc
 
-from PyQt6.QtWidgets import QLabel, QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QSpinBox, QTextEdit, QMessageBox
+from PyQt6.QtWidgets import QLabel, QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QSpinBox, QTextEdit, QMessageBox, QFileDialog
 from PyQt6.QtCore import Qt
 
 class CaesarPage(QWidget):
@@ -15,7 +15,7 @@ class CaesarPage(QWidget):
         pageLabel.setStyleSheet("font-size: 24px; padding: 10px;")
 
         #  Create and configure labels
-        self.shift_label = QLabel("Shift Number:")
+        self.shift_label = QLabel("Key:")
         self.plaintext_label = QLabel("Plaintext:")
         self.ciphertext_label = QLabel("Ciphertext:")
 
@@ -28,16 +28,44 @@ class CaesarPage(QWidget):
         self.shift_input.setSingleStep(1)
         self.shift_input.setStyleSheet("font-size: 18px; padding: 5px; height: 30px; ")
 
+        self.textfile_button = QPushButton("Select plain text file")
+        self.textfile_button.setFixedWidth(150)  # Set fixed width
+        self.textfile_button.setFixedHeight(40)  # Set fixed height
+        self.textfile_button.clicked.connect(lambda: self.pick_text_file())
+        self.textfile_label = QLabel("No file selected")
+
+        # Layout for file picker 1
+        textfile_layout = QHBoxLayout()
+        textfile_layout.addStretch()
+        textfile_layout.addWidget(self.textfile_button)
+        textfile_layout.addWidget(self.textfile_label)
+        textfile_layout.addStretch()
+
         self.plaintext_input = QTextEdit()
-        self.plaintext_input.setStyleSheet("font-size: 18px; padding: 5px; height: 80px;")
+        self.plaintext_input.setReadOnly(True)
+        self.plaintext_input.setStyleSheet("font-size: 18px; padding: 5px; height: 120px;")
+
+        self.ciphertextfile_button = QPushButton("Select cipher text file")
+        self.ciphertextfile_button.setFixedWidth(150)  # Set fixed width
+        self.ciphertextfile_button.setFixedHeight(40)  # Set fixed height
+        self.ciphertextfile_button.clicked.connect(lambda: self.pick_ciphertext_file())
+        self.ciphertextfile_label = QLabel("No file selected")
+
+        # Layout for file picker 1
+        ciphertextfile_layout = QHBoxLayout()
+        ciphertextfile_layout.addStretch()
+        ciphertextfile_layout.addWidget(self.ciphertextfile_button)
+        ciphertextfile_layout.addWidget(self.ciphertextfile_label)
+        ciphertextfile_layout.addStretch()
 
         self.ciphertext_output = QTextEdit()
-        self.ciphertext_output.setStyleSheet("font-size: 18px; padding: 5px; height: 80px;")
+        self.ciphertext_output.setReadOnly(True)
+        self.ciphertext_output.setStyleSheet("font-size: 18px; padding: 5px; height: 120px;")
 
-        self.analysis_output_label = QLabel("Computational Analysis:")
+        self.analysis_output_label = QLabel("Calculation Time:")
         self.analysis_output = QTextEdit()
         self.analysis_output.setReadOnly(True)
-        self.analysis_output.setStyleSheet("font-size: 13px; padding: 5px; height: 50px;")
+        self.analysis_output.setStyleSheet("font-size: 13px; padding: 5px; height: 20px;")
 
         # Create and configure the "Encrypt, Decrypt" buttons
         encrypt_button = QPushButton("Encrypt")
@@ -52,10 +80,15 @@ class CaesarPage(QWidget):
         input_layout = QVBoxLayout()
         input_layout.addWidget(self.shift_label)
         input_layout.addWidget(self.shift_input)
+        
         input_layout.addWidget(self.plaintext_label)
         input_layout.addWidget(self.plaintext_input)
+        input_layout.addLayout(textfile_layout)
+
         input_layout.addWidget(self.ciphertext_label)
         input_layout.addWidget(self.ciphertext_output)
+        input_layout.addLayout(ciphertextfile_layout)
+
         input_layout.addWidget(self.analysis_output_label)
         input_layout.addWidget(self.analysis_output)
 
@@ -80,19 +113,54 @@ class CaesarPage(QWidget):
 
         self.setLayout(layout)
 
+        self.textfile_path = None
+        self.cipherfile_path = None
+
     def go_back(self):
         self.plaintext_input.setPlainText("")
         self.ciphertext_output.setPlainText("")
         self.analysis_output.setPlainText("")
         self.shift_input.setValue(0)
+        self.textfile_path = None
+        self.cipherfile_path = None
         self.stack.setCurrentIndex(0)
 
+    def pick_text_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select Text File", "", "Text Files (*.txt);;All Files (*)")
+        if file_path:
+            self.textfile_path = file_path
+            self.textfile_label.setText(f"Text file selected")
+            try:
+                with open(self.textfile_path, 'r') as plainTextFile:
+                    plainText = plainTextFile.read()
+                    if plainText:
+                        self.plaintext_input.setPlainText(plainText)
+            except Exception as e:
+                errMsg = "Opening plaintext file failed: %s " %e
+                QMessageBox.critical(self, "Error", errMsg)
+
+    def pick_ciphertext_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select Cipher Text File", "", "Text Files (*.txt);;All Files (*)")
+        if file_path:
+            self.cipherfile_path = file_path
+            self.ciphertextfile_label.setText(f"Cipher text file selected")
+            try:
+                with open(self.cipherfile_path, 'r') as cipherTextFile:
+                    cipherText = cipherTextFile.read()
+                    if cipherText:
+                        self.ciphertext_output.setPlainText(cipherText)
+            except Exception as e:
+                errMsg = "Opening cipher text file failed: %s " %e
+                QMessageBox.critical(self, "Error", errMsg)
+
     def encrypt_btn_clicked(self):
+        self.is_encryption = True
+        self.is_decryption = False
         self.analysis_output.setPlainText("")
         shiftKey = self.shift_input.value()
         plainText = self.plaintext_input.toPlainText()
         if shiftKey < 0 or shiftKey > 25:
-            QMessageBox.critical(self, "Error", "Shift value must be between 0 and 25")
+            QMessageBox.critical(self, "Error", "Key must be between 0 and 25")
             return 1
         if not plainText:
             QMessageBox.critical(self, "Error", "Plain text is empty")
@@ -109,16 +177,19 @@ class CaesarPage(QWidget):
         timeTakenAnalysis = f"Time taken: {time_taken_ms:.2f} ms"
         cpuUsageAnalysis = f"CPU usage: {cpu_usage}%"        
         memoryUsageAnalysis = f"Memory usage: {peak / 10**3} KB"
-        combinedAnalysis = f"{timeTakenAnalysis}\n{cpuUsageAnalysis}\n{memoryUsageAnalysis}"
+        # combinedAnalysis = f"{timeTakenAnalysis}\n{cpuUsageAnalysis}\n{memoryUsageAnalysis}"
+        combinedAnalysis = f"{timeTakenAnalysis}"
 
         self.analysis_output.setPlainText(combinedAnalysis)
 
     def decrypt_btn_clicked(self):
+        self.is_encryption = False
+        self.is_decryption = True
         self.analysis_output.setPlainText("")
         shiftKey = self.shift_input.value()
         cipherText = self.ciphertext_output.toPlainText()
         if shiftKey < 0 or shiftKey > 25:
-            QMessageBox.critical(self, "Error", "Shift value must be between 0 and 25")
+            QMessageBox.critical(self, "Error", "Key must be between 0 and 25")
             return 1
         if not cipherText:
             QMessageBox.critical(self, "Error", "Cipher text is empty")
@@ -135,7 +206,8 @@ class CaesarPage(QWidget):
         timeTakenAnalysis = f"Time taken: {time_taken_ms:.2f} ms"
         cpuUsageAnalysis = f"CPU usage: {cpu_usage}%"        
         memoryUsageAnalysis = f"Memory usage: {peak / 10**3} KB"
-        combinedAnalysis = f"{timeTakenAnalysis}\n{cpuUsageAnalysis}\n{memoryUsageAnalysis}"
+        # combinedAnalysis = f"{timeTakenAnalysis}\n{cpuUsageAnalysis}\n{memoryUsageAnalysis}"
+        combinedAnalysis = f"{timeTakenAnalysis}"
 
         self.analysis_output.setPlainText(combinedAnalysis)
 
@@ -148,7 +220,6 @@ class CaesarPage(QWidget):
             else:
                 result += char
         self.ciphertext_output.setPlainText(result)
-        return 0
 
     def decrypt(self, ciphertext, shift):
         result = ""
