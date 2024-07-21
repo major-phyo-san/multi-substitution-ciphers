@@ -92,11 +92,17 @@ class CaesarPage(QWidget):
         input_layout.addWidget(self.analysis_output_label)
         input_layout.addWidget(self.analysis_output)
 
+        # Create and configure the "Save As" button
+        save_button = QPushButton("Save As")
+        save_button.setStyleSheet("font-size: 18px; padding: 10px;")
+        save_button.clicked.connect(self.save_to_file_btn_clicked)
+
         # Layout for button
         button_layout = QHBoxLayout()
         button_layout.addStretch(1)
         button_layout.addWidget(encrypt_button)
         button_layout.addWidget(decrypt_button)
+        button_layout.addWidget(save_button)
         button_layout.addStretch(1)
 
         back_button = QPushButton("Back")
@@ -116,6 +122,9 @@ class CaesarPage(QWidget):
         self.textfile_path = None
         self.cipherfile_path = None
 
+        self.is_decryption = False
+        self.is_encryption = False
+
     def go_back(self):
         self.plaintext_input.setPlainText("")
         self.ciphertext_output.setPlainText("")
@@ -123,7 +132,42 @@ class CaesarPage(QWidget):
         self.shift_input.setValue(0)
         self.textfile_path = None
         self.cipherfile_path = None
-        self.stack.setCurrentIndex(0)
+        self.is_decryption = False
+        self.is_encryption = False
+        self.stack.setCurrentIndex(0)        
+
+    def save_to_file_btn_clicked(self):
+        if not self.is_encryption and not self.is_decryption:
+            QMessageBox.warning(self, "Warning", "No data to be saved")
+            return
+        
+        text = None
+        if self.is_encryption:
+            cipherText = self.ciphertext_output.toPlainText()
+            if not cipherText:
+                QMessageBox.warning(self, "Warning", "No cipher text to save. Check the decryption first.")
+                return
+            text = cipherText
+        
+        if self.is_decryption:
+            plainText = self.plaintext_input.toPlainText()
+            if not plainText:
+                QMessageBox.warning(self, "Warning", "No plain text to save. Check the encryption first.")
+                return
+            text = plainText
+
+        # Open file dialog to save the combined content
+        file_path, _ = QFileDialog.getSaveFileName(self, "Save File", "", "Text Files (*.txt);;All Files (*)")
+        if file_path and text:
+            self.save_to_file(file_path, text)
+
+    def save_to_file(self, file_path, text):
+        try:
+            with open(file_path, 'w') as file:
+                file.write(text)
+            QMessageBox.information(self, "Success", "File saved successfully.")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to save plain text file: {e}")
 
     def pick_text_file(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Select Text File", "", "Text Files (*.txt);;All Files (*)")
