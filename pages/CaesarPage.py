@@ -3,7 +3,7 @@ import psutil
 import time
 import tracemalloc
 
-from PyQt6.QtWidgets import QLabel, QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QSpinBox, QTextEdit, QMessageBox, QFileDialog
+from PyQt6.QtWidgets import QLabel, QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QSpinBox, QTextEdit, QMessageBox, QFileDialog, QDialog
 from PyQt6.QtCore import Qt
 
 class CaesarPage(QWidget):
@@ -65,15 +65,15 @@ class CaesarPage(QWidget):
         self.ciphertext_output.setFixedHeight(90)
         self.ciphertext_output.setStyleSheet("font-size: 12px; margin-bottom: 25px;")
 
-        self.key_result_label = QLabel("Searched Key:")
+        self.key_result_label = QLabel("Brute force result:")
         self.key_result_output = QTextEdit()
         self.key_result_output.setReadOnly(True)
-        self.key_result_output.setStyleSheet("font-size: 13px; padding: 5px; height: 20px;")
+        self.key_result_output.setStyleSheet("font-size: 13px; padding: 5px; height: 60px;")
 
         self.analysis_output_label = QLabel("Calculation Time:")
         self.analysis_output = QTextEdit()
         self.analysis_output.setReadOnly(True)
-        self.analysis_output.setStyleSheet("font-size: 13px; padding: 5px; height: 20px;")
+        self.analysis_output.setStyleSheet("font-size: 13px; padding: 5px; height: 10px;")
 
         # Layout for inputs
         input_layout = QVBoxLayout()
@@ -174,16 +174,15 @@ class CaesarPage(QWidget):
 
     def attack_btn_clicked(self):
         self.is_decryption = False
-        self.is_encryption = False   
-        plainText = self.plaintext_input.toPlainText()
+        self.is_encryption = False
         cipherText = self.ciphertext_output.toPlainText()
-        if not plainText or not cipherText:
-            QMessageBox.critical(self, "Error", "Both plain text and cipher text must be provided")
+        if not cipherText:
+            QMessageBox.critical(self, "Error", "Cipher text must be provided")
             return
         
         tracemalloc.start()
         start_time = time.time()        
-        searched_key = self.brute_attack(plainText, cipherText)
+        brute_text = self.brute_attack(cipherText)
         end_time = time.time()
         current, peak = tracemalloc.get_traced_memory()
         time_taken_ms = (end_time - start_time) * 1000
@@ -192,29 +191,63 @@ class CaesarPage(QWidget):
         timeTakenAnalysis = f"Time taken: {time_taken_ms:.2f} ms"
         combinedAnalysis = f"{timeTakenAnalysis}"
 
-        if searched_key:
-            msg = "Key is broken by brute force attacking, the result is: %s " %searched_key
-            self.key_result_output.setPlainText(msg)     
-            self.analysis_output.setPlainText(combinedAnalysis)  
-            QMessageBox.information(self, "OK", msg)
-        else:
-            QMessageBox.warning(self, "Not OK", "Key is not found by brute force attacking")
+        if brute_text:
+            self.key_result_output.setPlainText(brute_text)
+            self.analysis_output.setPlainText(combinedAnalysis)
 
-    def brute_attack(self, plainText, cipherText):
-        searched_key = None
+            dialog = QDialog(self)
+            dialog.setWindowTitle("Brute force attack result")
+            dialog.setMinimumSize(500, 400)
+
+            # Create a QTextEdit for displaying the long text
+            text_edit = QTextEdit(dialog)
+            text_edit.setReadOnly(True)
+            text_edit.setStyleSheet("font-size: 14px; padding: 10px;")
+
+            # Set the long text to the text edit
+            text_edit.setPlainText(brute_text)
+
+            # Create and configure the "Close" button
+            close_button = QPushButton("Close")
+            close_button.setStyleSheet("font-size: 16px; padding: 5px;")
+            close_button.clicked.connect(dialog.accept)
+
+            # Layout for the dialog
+            dialog_layout = QVBoxLayout()
+            dialog_layout.addWidget(text_edit)
+
+            # Layout for the close button
+            button_layout = QHBoxLayout()
+            button_layout.addStretch()
+            button_layout.addWidget(close_button)
+            button_layout.addStretch()
+            
+            dialog_layout.addLayout(button_layout)
+
+            # Set layout for the dialog
+            dialog.setLayout(dialog_layout)
+
+            # Show the dialog
+            dialog.exec()
+            
+        else:
+            QMessageBox.warning(self, "Not OK", "Unable to perform brute force attacking")
+
+    def brute_attack(self, cipherText):
         shiftKeys = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25]
+        brute_text = ""
         for shift in shiftKeys:
-            result = ""
-            for char in plainText:
+            result = f"Plain text at key {shift}: "
+            for char in cipherText:
                 if char.isalpha():
                     shift_base = 65 if char.isupper() else 97
-                    result += chr((ord(char) - shift_base + shift) % 26 + shift_base)
+                    result += chr((ord(char) - shift_base - shift) % 26 + shift_base)
                 else:
-                    result += char
-            if result == cipherText:
-                searched_key = shift                
-                break
-        return searched_key
+                    result += char                
+            result += "\n"
+            brute_text += result
+
+        return brute_text
     
     def save_to_file_btn_clicked(self):
         if not self.is_encryption and not self.is_decryption:
