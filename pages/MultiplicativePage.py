@@ -236,7 +236,7 @@ class MultiplicativePage(QWidget):
         shiftKeys = self.validKeys
         brute_text = ""
         for key in shiftKeys:
-            result = f"Plain text at key {key}: "            
+            result = f"Plain text at key {key}: \n"            
             inv_key = self.mod_inverse(key, 26)        
             for char in cipherText:
                 if char.isupper():
@@ -245,7 +245,7 @@ class MultiplicativePage(QWidget):
                     result += chr((ord(char) - 97) * inv_key % 26 + 97)
                 else:
                     result += char
-            result += "\n"
+            result += "\n\n\n"
             brute_text += result
         return brute_text
 
