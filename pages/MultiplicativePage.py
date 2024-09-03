@@ -180,9 +180,11 @@ class MultiplicativePage(QWidget):
             return
         
         tracemalloc.start()
+
         start_time = time.time()        
         brute_text = self.brute_attack(cipherText)
         end_time = time.time()
+        
         current, peak = tracemalloc.get_traced_memory()
         time_taken_ms = (end_time - start_time) * 1000
         cpu_usage, memory_usage = self.monitor_resources()

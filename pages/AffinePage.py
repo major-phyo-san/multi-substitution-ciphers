@@ -1,3 +1,4 @@
+import os
 import psutil
 import time
 import tracemalloc
@@ -187,14 +188,17 @@ class AffinePage(QWidget):
             QMessageBox.critical(self, "Error", "Cipher text must be provided")
             return
 
-        brute_text = None
+        # brute_text = None
         tracemalloc.start()
+
         start_time = time.time()        
+        brute_text = self.brute_attack(cipherText)
         end_time = time.time()
+        
         current, peak = tracemalloc.get_traced_memory()
         time_taken_ms = (end_time - start_time) * 1000
         cpu_usage, memory_usage = self.monitor_resources()
-        brute_text = self.brute_attack(cipherText)
+        
         timeTakenAnalysis = f"Time taken: {time_taken_ms:.2f} ms"
         combinedAnalysis = f"{timeTakenAnalysis}"   
 
@@ -268,8 +272,9 @@ class AffinePage(QWidget):
     def pick_text_file(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Select Text File", "", "Text Files (*.txt);;All Files (*)")
         if file_path:
+            file_size = os.stat(file_path).st_size/1024
             self.textfile_path = file_path
-            self.textfile_label.setText(f"Text file selected")
+            self.textfile_label.setText(f"Text file selected, {file_size:.2f} KB in file size")
             try:
                 with open(self.textfile_path, 'r') as plainTextFile:
                     plainText = plainTextFile.read()
@@ -315,8 +320,9 @@ class AffinePage(QWidget):
     def pick_ciphertext_file(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Select Cipher Text File", "", "Text Files (*.txt);;All Files (*)")
         if file_path:
+            file_size = os.stat(file_path).st_size/1024
             self.cipherfile_path = file_path
-            self.ciphertextfile_label.setText(f"Cipher text file selected")
+            self.ciphertextfile_label.setText(f"Cipher text file selected, {file_size:.2f} KB in file size")
             try:
                 with open(self.cipherfile_path, 'r') as cipherTextFile:
                     cipherText = cipherTextFile.read()
